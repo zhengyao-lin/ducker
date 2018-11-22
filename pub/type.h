@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 typedef uint8_t byte_t;
 
@@ -16,6 +18,13 @@ typedef uint8_t byte_t;
             fprintf(stderr, "\n"); \
             abort(); \
         } \
+    } while (0)
+
+#define LOG(...) \
+    do { \
+        fprintf(stderr, "[log] "); \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, "\n"); \
     } while (0)
 
 #endif

@@ -2,12 +2,16 @@
 #define _CORE_CONTAINER_H_
 
 #include "bridge.h"
+#include "cgroup.h"
 
 typedef struct {
     char *tmp_dir; // template ending with XXXXXX
     char *host_name;
     char *nameserver;
     bridge_config_t *bridge_conf;
+
+    cgroup_entry_t *cg_conf;
+    size_t cg_n_conf;
 } container_config_t;
 
 typedef struct {

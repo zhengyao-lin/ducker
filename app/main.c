@@ -2,6 +2,14 @@
 
 int main(int argc, char **argv)
 {
+    cgroup_entry_t cg_conf[] = {
+        (cgroup_entry_t) {
+            .resrc = "memory",
+            .var = "memory.limit_in_bytes",
+            .val = "512M"
+        }
+    };
+
     bridge_config_t bridge_conf = {
         .host_ip = "10.200.1.1",
         .cont_ip = "10.200.1.2",
@@ -12,7 +20,10 @@ int main(int argc, char **argv)
         .tmp_dir = "ducker-tmp-XXXXXX",
         .host_name = "ducker",
         .nameserver = "1.1.1.1",
-        .bridge_conf = &bridge_conf
+        .bridge_conf = &bridge_conf,
+
+        .cg_conf = cg_conf,
+        .cg_n_conf = sizeof(cg_conf) / sizeof(*cg_conf)
     };
 
     container_t *cont;

@@ -13,9 +13,9 @@
     do { \
         char *cmd; \
         asprintf(&cmd, __VA_ARGS__); \
-        fprintf(stderr, "+ %s\n", cmd); \
+        LOG("+ %s", cmd); \
         if (system(cmd)) { \
-            fprintf(stderr, "failed to " action "\n"); \
+            LOG("failed to " action); \
             free(cmd); \
             clean; \
             return -1; \
@@ -58,7 +58,7 @@ static char *get_physical_dev()
     }
 
     if (fscanf(fp, "default via %*s dev %16s", dev) != 1) {
-        fprintf(stderr, "failed to get device name\n");
+        LOG("failed to get device name");
         return NULL;
     }
 
@@ -131,7 +131,7 @@ int bridge_set_up(const bridge_config_t *conf, pid_t pid)
 
     if (phy) {
         // set access to internet
-        fprintf(stderr, "forwarding between %s and %s\n", phy, veth);
+        LOG("forwarding between %s and %s", phy, veth);
 
         fd = open("/proc/sys/net/ipv4/ip_forward", O_WRONLY | O_TRUNC);
 
@@ -167,15 +167,14 @@ int bridge_set_up(const bridge_config_t *conf, pid_t pid)
 
 int bridge_clean(pid_t pid)
 {
-    // char *veth, *vpeer;
+    char *veth;
 
-    // asprintf(&veth, BRIDGE_VETH_PREFIX "%d", pid);
-    // asprintf(&vpeer, BRIDGE_VPEER_PREFIX "%d", pid);
+    asprintf(&veth, BRIDGE_VETH_PREFIX "%d", pid);
 
-    // // SYSTEM("remove veth", "ip link del %s", veth);
+    // ignore any failures
+    SYSTEM({ free(veth); return 0; }, "remove veth", "ip link del %s", veth);
 
-    // free(veth);
-    // free(vpeer);
+    free(veth);
 
     return 0;
 }

@@ -6,6 +6,7 @@
 #include "pub/fd.h"
 
 #include "container.h"
+#include "cgroup.h"
 #include "bridge.h"
 #include "user.h"
 #include "fs.h"
@@ -28,6 +29,9 @@ container_config_copy(const container_config_t *conf)
     copy->nameserver = strdup(conf->nameserver);
     copy->bridge_conf = bridge_config_copy(conf->bridge_conf);
 
+    copy->cg_conf = cgroup_entry_copy(conf->cg_conf, conf->cg_n_conf);
+    copy->cg_n_conf = conf->cg_n_conf;
+
     return copy;
 }
 
@@ -39,6 +43,8 @@ container_config_free(container_config_t *conf)
         free(conf->host_name);
         free(conf->nameserver);
         bridge_config_free(conf->bridge_conf);
+        cgroup_entry_free(conf->cg_conf, conf->cg_n_conf);
+
         free(conf);
     }
 }
@@ -146,7 +152,7 @@ container_set_up_tmp_dir(container_t *cont, const char *img)
     snprintf(buf, sizeof(buf), "tar -xzf \'%s\' -C %s/%s", img, template, IMAGE_DIR);
 
     if (system(buf)) {
-        fprintf(stderr, "failed to load image '%s'\n", img);
+        LOG("failed to load image '%s'", img);
         return -1;
     }
 
@@ -166,7 +172,7 @@ container_clean_tmp_dir(container_t *cont)
     snprintf(cmd, sizeof(cmd), "rm -r '%s'", cont->tmp_dir);
 
     if (system(cmd)) {
-        fprintf(stderr, "failed to remove tmp dir\n");
+        LOG("failed to remove tmp dir");
         return -1;
     }
 
@@ -179,20 +185,26 @@ int
 container_run_image(container_t *cont, const char *img)
 {
     pid_t child;
+    pid_t parent = getpid();
 
     if (container_set_up_tmp_dir(cont, img)) {
-        fprintf(stderr, "failed to set up tmp dir\n");
+        LOG("failed to set up tmp dir");
         return -1;
     }
 
     if (chdir(cont->tmp_dir)) {
-        fprintf(stderr, "failed to chdir to tmp dir\n");
+        LOG("failed to chdir to tmp dir");
         return -1;
     }
 
     // if (root_mount(ROOT_DIR, "/", IMAGE_DIR, WORK_DIR)) {
     if (root_mount(ROOT_DIR, IMAGE_DIR, UPPER_DIR, WORK_DIR)) {
-        fprintf(stderr, "failed to mount root\n");
+        LOG("failed to mount root");
+        goto CLEAN;
+    }
+
+    if (cgroup_init(cont->conf->cg_conf, cont->conf->cg_n_conf, parent)) {
+        LOG("failed to set up cgroup");
         goto CLEAN;
     }
 
@@ -202,11 +214,11 @@ container_run_image(container_t *cont, const char *img)
                   CLONE_NEWIPC | SIGCHLD, cont, NULL);
 
     if (user_map_set_up(child)) {
-        fprintf(stderr, "failed to set up id map\n");
+        LOG("failed to set up id map");
     }
 
     if (bridge_set_up(cont->conf->bridge_conf, child)) {
-        fprintf(stderr, "failed to set up bridge\n");
+        LOG("failed to set up bridge");
     }
 
     // wake init
@@ -220,23 +232,27 @@ container_run_image(container_t *cont, const char *img)
     }
 
 CLEAN:
+    if (cgroup_clean(cont->conf->cg_conf, cont->conf->cg_n_conf, parent)) {
+        LOG("failed to clean up cgroup");
+    }
+
     if (root_umount(ROOT_DIR)) {
-        fprintf(stderr, "failed to umount file system\n");
+        LOG("failed to umount file system");
         // return -1;
     }
 
     if (bridge_clean(child)) {
-        fprintf(stderr, "failed to clean up bridge\n");
+        LOG("failed to clean up bridge");
     }
 
     // exit tmp dir
     if (chdir("..")) {
-        fprintf(stderr, "failed to chdir to parent dir\n");
+        LOG("failed to chdir to parent dir");
         return -1;
     }
 
     if (container_clean_tmp_dir(cont)) {
-        fprintf(stderr, "failed to clean tmp dir\n");
+        LOG("failed to clean tmp dir");
         // return -1;
     }
 
@@ -313,10 +329,10 @@ init(void *arg)
     container_pipe_read(cont, buf, 1);
     container_close_read(cont);
 
-    fprintf(stderr, "init is up\n");
+    LOG("init is up");
 
     if (init_load_container()) {
-        fprintf(stderr, "failed to load container\n");
+        LOG("failed to load container");
         return -1;
     }
 
