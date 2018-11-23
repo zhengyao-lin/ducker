@@ -8,6 +8,7 @@
 #include "container.h"
 #include "cgroup.h"
 #include "bridge.h"
+#include "image.h"
 #include "user.h"
 #include "fs.h"
 
@@ -149,10 +150,15 @@ container_set_up_tmp_dir(container_t *cont, const char *img)
 
     // temporal implementation for decompression
     // copy image to upper dir
-    snprintf(buf, sizeof(buf), "tar -xzf \'%s\' -C %s/%s", img, template, IMAGE_DIR);
+    // snprintf(buf, sizeof(buf), "tar -xzf '%s' -C %s/%s", img, template, IMAGE_DIR);
+    // if (system(buf)) {
+    //     LOG("failed to load image '%s'", img);
+    //     return -1;
+    // }
 
-    if (system(buf)) {
-        LOG("failed to load image '%s'", img);
+    snprintf(buf, sizeof(buf), "%s/%s", template, IMAGE_DIR);
+
+    if (decompress_image(img, buf)) {
         return -1;
     }
 
@@ -327,7 +333,7 @@ init(void *arg)
 
     container_close_write(cont);
     container_pipe_read(cont, buf, 1);
-    container_close_read(cont);
+    // container_close_read(cont);
 
     LOG("init is up");
 

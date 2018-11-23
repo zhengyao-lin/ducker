@@ -24,5 +24,6 @@ macro(add_lib_batch lib_name linkage)
 endmacro()
 
 add_subdirectory(app)
+add_subdirectory(pub)
 add_subdirectory(core)
 add_subdirectory(toml)

@@ -20,11 +20,8 @@ typedef struct {
 
 typedef struct {
     clone_stack_t stack;
-    
     container_config_t *conf;
-    
     int pipe[2];
-
     char *tmp_dir;
 } container_t;
 
